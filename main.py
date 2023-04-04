@@ -3,6 +3,7 @@ from urllib.request import urlopen
 from PIL import Image
 from requests import post, get
 from ytmusicapi import YTMusic
+from rgbmatrix import RGBMatrix, RGBMatrixOptions
 import time
 
 
@@ -17,7 +18,9 @@ def get_current_song(last_song_id, time_since_last_duplicate_result):
         print(last_listened_song["title"])
 
         # Get new song thumbnail
-        get_thumbnail(last_listened_song=last_listened_song)
+        thumbnail = get_thumbnail(last_listened_song=last_listened_song)
+
+        # TODO: convert and display image
 
     else:
         # Still the same song, wait before sending a new request
@@ -26,7 +29,7 @@ def get_current_song(last_song_id, time_since_last_duplicate_result):
         time_since_last_duplicate_result = time_since_last_duplicate_result + sleep_time
 
     # If more than 5 minutes have passed, assume the player is idle / closed, and display default logo instead
-    if time_since_last_duplicate_result < 300:
+    if time_since_last_duplicate_result < 10:
         get_current_song(last_song_id, time_since_last_duplicate_result)
     else:
         display_default_logo(last_song_id=last_song_id)
@@ -46,26 +49,42 @@ def get_thumbnail(last_listened_song):
             lowestResolution = resolution
 
     img = Image.open(urlopen(url))
-    # print(img)
+    return img
 
 
-def display_default_logo(img, last_song_id):
-    # TODO display default logo when the user is not listening to anything
-    print(img)
-    # TODO check last_listened_song once in a while
+def display_default_logo(last_song_id):
+    img = Image.open("YTMLOGO.png")
+    img.thumbnail((matrix.width, matrix.height), Image.ANTIALIAS)
+    visualize_thumbnail(img)
+
+    get_current_song(last_song_id, 10)
 
 
 def convert_thumnail_data(img):
-    # TODO convert img to pixel array or something
-    print("converting data...")
+    img.thumbnail((matrix.width, matrix.height), Image.ANTIALIAS)
+    visualize_thumbnail(img)
 
 
-def visualize_thumbnail():
-    # TODO send data to LED Matrix
-    print("visualizing...")
+def visualize_thumbnail(img):
+    matrix.SetImage(img.convert('RGB'))
+
+
+def setup_led_board():
+    options = RGBMatrixOptions()
+    options.rows = 64
+    options.cols = 64
+    options.gpio_slowdown = 4
+    options.chain_length = 1
+    options.parallel = 1
+    options.hardware_mapping = 'adafruit-hat'
+
+    matrix = RGBMatrix(options=options)
+    return matrix
 
 
 ytmusic = YTMusic('headers_auth.json')  # Youtube music API
 
+matrix = setup_led_board()
+
 # Get currently playing / last played song
-get_current_song(None)
+get_current_song(None, 0)
